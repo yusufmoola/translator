@@ -27,6 +27,9 @@ class QuranTranslatorApp:
         self.root.title("Quran Recitation Translator")
         self.root.geometry("900x700")
         
+        # Bring window to foreground on macOS
+        self.bring_to_foreground()
+        
         # Initialize components
         self.speech_recognizer = None
         self.data_manager = UnifiedQuranAPI()  # Unified API manager
@@ -41,6 +44,41 @@ class QuranTranslatorApp:
         # Then initialize data and speech recognition
         self.initialize_quran_data()
         self.setup_speech_recognition()
+    
+    def bring_to_foreground(self):
+        """Bring the application window to the foreground"""
+        try:
+            # Make the window appear on top
+            self.root.lift()
+            self.root.attributes('-topmost', True)
+            self.root.after_idle(self.root.attributes, '-topmost', False)
+            
+            # Focus the window
+            self.root.focus_force()
+            
+            # On macOS, try to activate the application
+            import platform
+            if platform.system() == "Darwin":  # macOS
+                try:
+                    # Try to use osascript to bring the app to front
+                    import subprocess
+                    subprocess.run([
+                        'osascript', '-e',
+                        'tell application "System Events" to set frontmost of first process whose unix id is {} to true'.format(os.getpid())
+                    ], check=False, capture_output=True)
+                except:
+                    pass  # Fallback silently if osascript fails
+                
+                # Alternative method using Tkinter's built-in method
+                try:
+                    self.root.call('wm', 'attributes', '.', '-topmost', '1')
+                    self.root.after_idle(self.root.call, 'wm', 'attributes', '.', '-topmost', '0')
+                except:
+                    pass
+            
+        except Exception as e:
+            # Don't let window focusing issues crash the app
+            print(f"Note: Could not bring window to foreground: {e}")
         
     def setup_ui(self):
         """Setup the user interface"""
@@ -395,6 +433,10 @@ class QuranTranslatorApp:
         """Start the application"""
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         self.log_message("Quran Translator started")
+        
+        # Final attempt to bring window to front after everything is loaded
+        self.root.after(100, self.bring_to_foreground)
+        
         self.root.mainloop()
 
 if __name__ == "__main__":

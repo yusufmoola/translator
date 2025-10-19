@@ -56,6 +56,19 @@ A real-time speech recognition application that listens to Quran recitation and 
 python run_app.py
 ```
 
+**macOS Users - Foreground Launch:**
+If the GUI opens in the background on macOS, use one of these alternatives:
+```bash
+# Option 1: Python launcher (recommended)
+python launch_app.py
+
+# Option 2: Shell script launcher
+./launch.sh
+
+# Option 3: Use pythonw (if available)
+pythonw run_app.py
+```
+
 **Manual Start:**
 ```bash
 python app_integrated.py
@@ -173,23 +186,28 @@ The current Python/Tkinter implementation can be ported to iOS using:
 
 ### Common Issues
 
-1. **Microphone Permission**
+1. **GUI Opens in Background (macOS)**
+   - Use `python launch_app.py` instead of `python run_app.py`
+   - Or use `./launch.sh` for shell script launcher
+   - Or try `pythonw run_app.py` if pythonw is installed
+
+2. **Microphone Permission**
    - Grant microphone access when prompted
    - Check System Preferences > Security & Privacy > Microphone
 
-2. **PyAudio Installation**
+3. **PyAudio Installation**
    ```bash
    # On macOS with Apple Silicon
    brew install portaudio
    pip install pyaudio
    ```
 
-3. **Speech Recognition Errors**
+4. **Speech Recognition Errors**
    - Check internet connection
    - Verify microphone is working
    - Try speaking more clearly
 
-4. **No Verse Matches**
+5. **No Verse Matches**
    - Current sample data is limited
    - Recognition may not be perfect
    - Try with Al-Fatihah verses for testing
