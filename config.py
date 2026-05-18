@@ -4,6 +4,7 @@ Handles API credentials, feature flags, and settings
 """
 
 import os
+import sys
 from typing import Dict, Optional
 
 
@@ -13,7 +14,24 @@ class Config:
 
     def load_config(self):
         """Load configuration from .env file"""
-        env_path = os.path.join(os.path.dirname(__file__), '.env')
+        # Check multiple locations for .env
+        candidates = [
+            os.path.join(os.path.dirname(__file__), '.env'),
+            os.path.join(os.getcwd(), '.env'),
+        ]
+        # PyInstaller bundle: check next to the .app or inside _MEIPASS
+        if getattr(sys, 'frozen', False):
+            candidates.insert(0, os.path.join(os.path.dirname(sys.executable), '.env'))
+            candidates.insert(0, os.path.join(os.path.dirname(sys.executable), '..', 'Resources', '.env'))
+
+        env_path = None
+        for candidate in candidates:
+            if os.path.exists(candidate):
+                env_path = candidate
+                break
+
+        if env_path is None:
+            env_path = candidates[0]  # default for error message
 
         # Default configuration
         self.config = {

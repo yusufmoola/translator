@@ -29,6 +29,15 @@ from content_api import QuranContentAPI
 from user_api import QuranUserAPI
 
 
+def get_resource_path(relative_path):
+    """Get path to resource, works for dev and PyInstaller bundle."""
+    if getattr(sys, 'frozen', False):
+        base = sys._MEIPASS
+    else:
+        base = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base, relative_path)
+
+
 class QuranTranslatorApp:
     """Main application using tk.Text widgets for all display (macOS dark mode safe)."""
 
@@ -361,14 +370,14 @@ class QuranTranslatorApp:
             data_file = None
 
             # Prefer quran_complete.json (has full 114 surahs with translations)
-            complete_file = os.path.join("data", "quran_complete.json")
+            complete_file = get_resource_path(os.path.join("data", "quran_complete.json"))
             if os.path.exists(complete_file):
                 data_file = complete_file
                 self.log_message("Using complete Quran data (114 surahs)")
 
             # Fall back to official file (prelive - may lack translations)
             if not data_file:
-                official_file = os.path.join("data", "quran_official.json")
+                official_file = get_resource_path(os.path.join("data", "quran_official.json"))
                 if os.path.exists(official_file):
                     data_file = official_file
                     self.log_message("Using Foundation data (limited)")
@@ -377,7 +386,7 @@ class QuranTranslatorApp:
                 self.quran_matcher = QuranMatcher(data_file)
                 self.set_status("Verse index ready")
             else:
-                self.quran_matcher = QuranMatcher("data/sample_quran.json")
+                self.quran_matcher = QuranMatcher(get_resource_path("data/sample_quran.json"))
                 self.log_message("Sample data only - click 'Download Quran'")
         except Exception as e:
             self.log_message(f"Data init error: {e}")
@@ -497,6 +506,13 @@ class QuranTranslatorApp:
             self.status_text.configure(fg=color)
         self.status_text.configure(state=tk.DISABLED)
 
+    def _set_text(self, widget, text):
+        """Update any Text widget content."""
+        widget.configure(state=tk.NORMAL)
+        widget.delete("1.0", tk.END)
+        widget.insert("1.0", text)
+        widget.configure(state=tk.DISABLED)
+
     def _display_verse_text(self, arabic: str, english: str):
         """Update the combined verse display with arabic and english."""
         w = self.verse_display
@@ -520,12 +536,6 @@ class QuranTranslatorApp:
         surah_name = self.current_verse.get('surah_name', '')
         arabic = self.current_verse.get('arabic', '')
         translation = self.current_verse.get('translation', '')
-
-        if self.user_api and self.oauth_client and self.oauth_client.is_user_authenticated():
-            result = self.user_api.create_bookmark(verse_key, surah_name)
-            if result:
-                self.log_message(f"Bookmarked {verse_key} (synced)")
-                return
 
         if self.user_api:
             added = self.user_api.add_local_bookmark(verse_key, surah_name, arabic, translation)
@@ -594,10 +604,8 @@ class QuranTranslatorApp:
         sn = verse_info.get('surah_name', '')
         if not ch or not v:
             return
-        if self.oauth_client and self.oauth_client.is_user_authenticated():
-            self.user_api.create_reading_session(ch, v, v)
-        else:
-            self.user_api.add_local_reading_session(ch, v, v, sn)
+        # Always store locally (API sync is best-effort)
+        self.user_api.add_local_reading_session(ch, v, v, sn)
 
     def refresh_history(self):
         sessions = []
