@@ -1,236 +1,100 @@
 # Quran Recitation Translator
 
-A real-time speech recognition application that listens to Quran recitation and displays the corresponding English translation.
+A real-time speech recognition app that listens to Quran recitation and displays the Arabic text with its English translation. Built with the Quran.Foundation API for the 2026 Hackathon.
 
 ## Features
 
-- **Real-time Speech Recognition**: Captures Arabic speech using your microphone
-- **Verse Matching**: Intelligently matches recognized Arabic text to Quran verses
-- **Live Translation Display**: Shows Arabic text and English translation side-by-side
-- **Confidence Scoring**: Displays matching confidence for recognized verses
-- **Recognition Log**: Tracks all recognition attempts and results
+- **Real-time Speech Recognition** — captures Arabic recitation via microphone (Google Speech API)
+- **Intelligent Verse Matching** — fuzzy matching with diacritic normalization and partial recognition
+- **Quran.Foundation Content API** — fetches verses, chapters, and translations from the official API
+- **OAuth2 Login** — Quran.Foundation user authentication with PKCE
+- **Bookmarks** — save verses locally or sync to the cloud when logged in
+- **Reading History** — auto-tracks recited verses
+- **Collections** — organize saved verses into groups
+- **Offline Fallback** — works without internet using cached data (feature-flagged)
 
 ## Requirements
 
-- macOS (with plans for iOS support)
-- Python 3.8+
+- macOS
+- Python 3.13+ (Homebrew) with Tk 9.0
 - Microphone access
-- Internet connection (for Google Speech Recognition)
+- Internet connection
 
-## Installation
+## Quick Start
 
-1. **Clone or download the project**
-   ```bash
-   cd quran_translator
-   ```
-
-2. **Install Python dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Install system dependencies (macOS)**
-   ```bash
-   # Install portaudio for pyaudio
-   brew install portaudio
-   
-   # If you encounter issues with pyaudio, try:
-   pip install --global-option='build_ext' --global-option='-I/opt/homebrew/include' --global-option='-L/opt/homebrew/lib' pyaudio
-   ```
-
-4. **Download Complete Quran Data**
-   ```bash
-   # Option 1: Use the standalone downloader
-   python download_quran.py
-   
-   # Option 2: Use the app's download button
-   # Run the app and click "Download Quran"
-   ```
-
-## Usage
-
-### Running the Application
-
-**Easy Start (Recommended):**
 ```bash
-python run_app.py
-```
+# 1. Install system deps
+brew install python@3.13 python-tk@3.13 portaudio
 
-**macOS Users - Foreground Launch:**
-If the GUI opens in the background on macOS, use one of these alternatives:
-```bash
-# Option 1: Python launcher (recommended)
-python launch_app.py
+# 2. Create venv
+python3.13 -m venv .venv
+source .venv/bin/activate
 
-# Option 2: Shell script launcher
-./launch.sh
+# 3. Install Python deps
+pip install requests SpeechRecognition pyaudio
 
-# Option 3: Use pythonw (if available)
-pythonw run_app.py
-```
+# 4. Configure API credentials
+cp .env.example .env
+# Edit .env with your Quran.Foundation client_id and client_secret
 
-**Manual Start:**
-```bash
+# 5. Run
 python app_integrated.py
 ```
 
-### Using the Interface
+## Configuration
 
-1. **Start Listening**: Click "Start Listening" to begin speech recognition
-2. **Recite Quran**: Speak Arabic verses clearly into your microphone
-3. **View Results**: The app will display:
-   - Recognized Arabic text
-   - Matching verse information (Surah and Ayah number)
-   - English translation
-   - Confidence score
+Copy `.env.example` to `.env` and add your credentials from [Quran.Foundation Request Access](https://api-docs.quran.foundation/request-access/):
 
-4. **Test Mode**: Use "Test Recognition" to try with sample verses
+```env
+QURAN_CLIENT_ID=your_client_id
+QURAN_CLIENT_SECRET=your_client_secret
+QURAN_ENVIRONMENT=prelive
+OAUTH_REDIRECT_PORT=8765
 
-### Tips for Best Results
+# Feature flags
+USE_FOUNDATION_CONTENT_API=true
+USE_OFFLINE_FALLBACK=true
+```
 
-- **Clear Audio**: Speak clearly and minimize background noise
-- **Proper Pronunciation**: Traditional Arabic pronunciation works best
-- **Good Microphone**: Use a quality microphone for better recognition
-- **Internet Connection**: Required for Google Speech Recognition API
+Register `http://localhost:8765/callback` as your redirect URI.
 
-## Project Structure
+## Hackathon Technical Checklist
+
+| Requirement | Implementation |
+|---|---|
+| Content API | `content_api.py` — `/content/api/v4/chapters`, `/verses/by_chapter`, `/verses/by_key` |
+| User-Related API | `user_api.py` — bookmarks, collections, reading sessions via `/auth/v1/` |
+| OAuth integration | `oauth2_client.py` — authorization_code + PKCE flow with browser redirect |
+
+## Architecture
 
 ```
-quran_translator/
-├── run_app.py            # Easy startup script (RECOMMENDED)
-├── app_integrated.py     # Main application with GUI
-├── arabic_speech.py      # Speech recognition module
-├── quran_matcher.py      # Verse matching algorithms
-├── quran_api_simple.py   # Simple Quran API integration
-├── quran_api.py          # Advanced API (fallback)
-├── download_quran.py     # Standalone data downloader
-├── test_app.py           # Component testing script
-├── main.py               # Basic application framework
-├── setup.py              # Installation script
-├── requirements.txt      # Python dependencies
+├── app_integrated.py      # Main GUI application (Tkinter)
+├── oauth2_client.py       # OAuth2 client (client_credentials + auth_code/PKCE)
+├── content_api.py         # Quran.Foundation Content API v4 client
+├── user_api.py            # User API (bookmarks, collections, reading sessions)
+├── arabic_speech.py       # Microphone capture + Google Speech Recognition
+├── quran_matcher.py       # Arabic text normalization + fuzzy verse matching
+├── config.py              # Configuration and feature flags
+├── unified_quran_api.py   # Offline fallback (Al-Quran Cloud API)
 ├── data/
-│   ├── sample_quran.json    # Sample Quran data (fallback)
-│   ├── quran_complete.json  # Complete Quran (downloaded)
-│   └── translations.json    # Available translations
-└── README.md            # This file
+│   ├── quran_official.json   # Downloaded from Foundation API
+│   └── quran_complete.json   # Offline fallback data
+├── .env                   # API credentials (not committed)
+└── .env.example           # Template
 ```
 
-## Technical Details
+## How It Works
 
-### Speech Recognition
-- Uses Google Speech Recognition API
-- Configured for Arabic language (ar-SA)
-- Continuous listening with background processing
-- Automatic noise calibration
+1. **Speech** — microphone audio → Google Speech API (Arabic `ar-SA`) → recognized text
+2. **Matching** — normalized text → fuzzy match against verse index (exact → sequence → substring → word overlap)
+3. **Display** — matched verse shown with Arabic, English translation, surah/ayah info
+4. **Sync** — bookmarks and history sync to Quran.Foundation when logged in, or stored locally
 
-### Verse Matching
-- Text normalization (removes diacritics, normalizes characters)
-- Fuzzy matching algorithm with confidence scoring
-- Word-level and sequence-level similarity comparison
-- Supports partial verse recognition
+## Feature Flags
 
-### Quran Foundation API Integration
-The app uses the [Quran Foundation API](https://api-docs.quran.foundation/) to fetch:
-- Complete Quran text in Arabic (Uthmani script)
-- English translations (default: Dr. Mustafa Khattab, the Clear Quran)
-- Verse metadata (Juz, Hizb, page numbers)
-- Multiple translation options
-
-### Data Format
-The Quran data is stored in JSON format with this structure:
-```json
-{
-  "source": "Quran Foundation API",
-  "translation_id": 131,
-  "surahs": [
-    {
-      "number": 1,
-      "name": "Al-Fatihah",
-      "name_arabic": "الفاتحة",
-      "revelation_place": "makkah",
-      "verses_count": 7,
-      "verses": [
-        {
-          "number": 1,
-          "verse_key": "1:1",
-          "arabic": "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
-          "translation": "In the name of Allah...",
-          "juz": 1,
-          "page": 1
-        }
-      ]
-    }
-  ]
-}
-```
-
-## Extending the Application
-
-### Adding More Quran Data
-1. Expand `data/sample_quran.json` with complete Quran text
-2. Include multiple translation options
-3. Add transliteration support
-
-### Improving Recognition
-1. Train custom Arabic speech models
-2. Add offline recognition capabilities
-3. Implement voice activity detection
-
-### iOS Development
-The current Python/Tkinter implementation can be ported to iOS using:
-- **Kivy**: Cross-platform Python framework
-- **BeeWare**: Native iOS apps from Python
-- **Native iOS**: Swift with Speech Framework
-
-## Troubleshooting
-
-### Common Issues
-
-1. **GUI Opens in Background (macOS)**
-   - Use `python launch_app.py` instead of `python run_app.py`
-   - Or use `./launch.sh` for shell script launcher
-   - Or try `pythonw run_app.py` if pythonw is installed
-
-2. **Microphone Permission**
-   - Grant microphone access when prompted
-   - Check System Preferences > Security & Privacy > Microphone
-
-3. **PyAudio Installation**
-   ```bash
-   # On macOS with Apple Silicon
-   brew install portaudio
-   pip install pyaudio
-   ```
-
-4. **Speech Recognition Errors**
-   - Check internet connection
-   - Verify microphone is working
-   - Try speaking more clearly
-
-5. **No Verse Matches**
-   - Current sample data is limited
-   - Recognition may not be perfect
-   - Try with Al-Fatihah verses for testing
-
-## Future Enhancements
-
-- [ ] Complete Quran database integration
-- [ ] Multiple translation languages
-- [ ] Offline speech recognition
-- [ ] iOS app development
-- [ ] Audio recording and playback
-- [ ] Verse bookmarking and history
-- [ ] Custom reciter voice training
-- [ ] Tajweed analysis and feedback
+Set `USE_FOUNDATION_CONTENT_API=false` in `.env` to use the offline Al-Quran Cloud data instead of the Foundation API. The old code path is preserved and toggleable.
 
 ## License
 
-This project is for educational and religious purposes. Please ensure proper attribution when using Quran text and translations.
-
-## Contributing
-
-Contributions are welcome! Please focus on:
-- Improving Arabic speech recognition accuracy
-- Adding more comprehensive Quran data
-- Enhancing the user interface
-- iOS development support
+For educational and religious purposes. Quran text sourced from Quran.Foundation under their developer terms.
