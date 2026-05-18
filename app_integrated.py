@@ -40,8 +40,9 @@ class QuranTranslatorApp:
     ENGLISH_FG = "#cccccc"
     BTN_BG = "#4caf50"
     BTN_FG = "#000000"
-    NAV_BG = "#555555"
-    NAV_FG = "#ffffff"
+    NAV_BG = "#2a2a2a"
+    NAV_FG = "#cccccc"
+    NAV_BORDER = "#4caf50"
     PANEL_BG = "#000000"
     ORANGE = "#e8a838"
     RED = "#e85555"
@@ -111,11 +112,11 @@ class QuranTranslatorApp:
         self.nav_buttons = {}
         for label, page in pages:
             b = tk.Button(nav, text=label, command=lambda p=page: self._show_page(p),
-                          bg=self.NAV_BG, fg=self.NAV_FG, relief=tk.FLAT,
-                          font=("Arial", 10, "bold"), padx=12, pady=4,
-                          activebackground=self.ACCENT, activeforeground="#000",
-                          highlightthickness=0, borderwidth=0)
-            b.pack(side=tk.LEFT, padx=(0, 4))
+                          bg=self.NAV_BG, fg=self.NAV_FG, relief=tk.RIDGE,
+                          font=("Arial", 11), padx=14, pady=5,
+                          activebackground=self.NAV_BG, activeforeground=self.NAV_FG,
+                          highlightthickness=0, borderwidth=1)
+            b.pack(side=tk.LEFT, padx=(0, 2))
             self.nav_buttons[page] = b
 
         # Login button
@@ -126,9 +127,17 @@ class QuranTranslatorApp:
                                    highlightthickness=0, borderwidth=0)
         self.login_btn.pack(side=tk.RIGHT)
 
+        # Status bar at bottom (pack first so it gets reserved space)
+        self.statusbar = tk.Text(self.root, height=1, font=("Courier", 10),
+                                 bg="#111111", fg="#00ff00", relief=tk.FLAT,
+                                 borderwidth=4, highlightthickness=0, wrap=tk.NONE)
+        self.statusbar.pack(fill=tk.X, side=tk.BOTTOM, padx=8, pady=(0, 4))
+        self.statusbar.insert("1.0", "Ready")
+        self.statusbar.configure(state=tk.DISABLED)
+
         # Page container
         self.page_frame = tk.Frame(self.root, bg=self.BG)
-        self.page_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
+        self.page_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=(8, 0))
 
         # Build all pages
         self.pages = {}
@@ -147,9 +156,11 @@ class QuranTranslatorApp:
 
         for p, btn in self.nav_buttons.items():
             if p == name:
-                btn.configure(bg=self.ACCENT, fg="#000000")
+                btn.configure(bg=self.ACCENT, fg="#000000", font=("Arial", 11, "bold"),
+                              relief=tk.FLAT)
             else:
-                btn.configure(bg=self.NAV_BG, fg=self.NAV_FG)
+                btn.configure(bg=self.NAV_BG, fg=self.NAV_FG, font=("Arial", 11),
+                              relief=tk.RIDGE)
         self.current_page = name
 
         # Auto-refresh tab content
@@ -176,8 +187,8 @@ class QuranTranslatorApp:
                           ("Bookmark Verse", self.bookmark_current_verse)]:
             b = tk.Button(btn_row, text=text, command=cmd,
                           bg=self.BTN_BG, fg=self.BTN_FG, relief=tk.FLAT,
-                          font=("Arial", 10), padx=10, pady=3,
-                          activebackground="#555", activeforeground="#fff",
+                          font=("Arial", 10, "bold"), padx=10, pady=3,
+                          activebackground=self.BTN_BG, activeforeground=self.BTN_FG,
                           highlightthickness=0, borderwidth=0)
             b.pack(side=tk.LEFT, padx=(0, 6))
 
@@ -193,29 +204,27 @@ class QuranTranslatorApp:
         self.status_text.insert("1.0", "Status: Ready\nNo verse detected")
         self.status_text.configure(state=tk.DISABLED)
 
-        # Arabic text area
-        self._make_section_label(page, "ARABIC TEXT")
-        self.arabic_text = tk.Text(page, height=6, font=("Arial", 20),
-                                   bg=self.PANEL_BG, fg=self.ARABIC_FG,
-                                   relief=tk.FLAT, borderwidth=6, wrap=tk.WORD,
-                                   highlightthickness=0, spacing1=4, spacing3=4)
-        self.arabic_text.pack(fill=tk.BOTH, expand=True, pady=(0, 6))
-        self.arabic_text.insert("1.0", "Arabic text will appear here...")
-        self.arabic_text.configure(state=tk.DISABLED)
-
-        # English translation area
-        self._make_section_label(page, "ENGLISH TRANSLATION")
-        self.english_text = tk.Text(page, height=5, font=("Arial", 13),
-                                    bg=self.PANEL_BG, fg=self.ENGLISH_FG,
-                                    relief=tk.FLAT, borderwidth=6, wrap=tk.WORD,
-                                    highlightthickness=0, spacing1=4, spacing3=4)
-        self.english_text.pack(fill=tk.BOTH, expand=True, pady=(0, 6))
-        self.english_text.insert("1.0", "English translation will appear here...")
-        self.english_text.configure(state=tk.DISABLED)
+        # Combined verse display - one widget guarantees both are visible
+        self.verse_display = tk.Text(page, font=("Arial", 16),
+                                     bg=self.PANEL_BG, fg="#ffffff",
+                                     relief=tk.FLAT, borderwidth=8, wrap=tk.WORD,
+                                     highlightthickness=0, spacing1=6, spacing3=6,
+                                     cursor="arrow")
+        self.verse_display.tag_configure("arabic", font=("Arial", 20),
+                                         foreground="#ffffff", justify=tk.RIGHT,
+                                         spacing3=12)
+        self.verse_display.tag_configure("english", font=("Arial", 16),
+                                         foreground="#ffff00")
+        self.verse_display.pack(fill=tk.BOTH, expand=True, pady=(4, 4))
+        self.verse_display.insert(tk.END, "Recite or click 'Test Recognition' to begin...\n\n", "english")
+        # Prevent mouse/keyboard from altering text
+        self.verse_display.bind("<Key>", lambda e: "break")
+        self.verse_display.bind("<Button-1>", lambda e: "break")
+        self.verse_display.bind("<B1-Motion>", lambda e: "break")
 
         # Log area
         self._make_section_label(page, "LOG")
-        self.log_text = tk.Text(page, height=3, font=("Courier", 9),
+        self.log_text = tk.Text(page, height=2, font=("Courier", 9),
                                 bg="#1a1a1a", fg=self.DIM,
                                 relief=tk.FLAT, borderwidth=6, wrap=tk.WORD,
                                 highlightthickness=0)
@@ -317,6 +326,7 @@ class QuranTranslatorApp:
         if not self.oauth_client:
             messagebox.showerror("Error", "API credentials not configured")
             return
+        self.set_status("Connecting to Quran.Foundation OAuth...")
         self.log_message("Opening browser for login...")
 
         def on_done(success):
@@ -327,11 +337,14 @@ class QuranTranslatorApp:
 
     def _handle_login_result(self, success):
         if success:
+            self.set_status("Authenticated - syncing user data...")
             self.log_message("Login successful!")
             self._update_login_button()
             if self.user_api:
                 self.sync_bookmarks()
+            self.set_status("Logged in")
         else:
+            self.set_status("Login failed")
             self.log_message("Login failed")
             messagebox.showerror("Login Failed", "Could not complete login.")
 
@@ -346,20 +359,23 @@ class QuranTranslatorApp:
     def initialize_quran_data(self):
         try:
             data_file = None
-            if config.use_foundation_api() and self.content_api:
-                data_file = self.content_api.get_data_file()
-                if data_file:
-                    self.log_message("Using Quran.Foundation official data")
 
-            if not data_file and config.use_offline_fallback():
-                from unified_quran_api import UnifiedQuranAPI
-                fallback = UnifiedQuranAPI()
-                data_file = fallback.get_best_data_file()
-                if data_file:
-                    self.log_message("Using offline Quran data")
+            # Prefer quran_complete.json (has full 114 surahs with translations)
+            complete_file = os.path.join("data", "quran_complete.json")
+            if os.path.exists(complete_file):
+                data_file = complete_file
+                self.log_message("Using complete Quran data (114 surahs)")
+
+            # Fall back to official file (prelive - may lack translations)
+            if not data_file:
+                official_file = os.path.join("data", "quran_official.json")
+                if os.path.exists(official_file):
+                    data_file = official_file
+                    self.log_message("Using Foundation data (limited)")
 
             if data_file:
                 self.quran_matcher = QuranMatcher(data_file)
+                self.set_status("Verse index ready")
             else:
                 self.quran_matcher = QuranMatcher("data/sample_quran.json")
                 self.log_message("Sample data only - click 'Download Quran'")
@@ -384,20 +400,25 @@ class QuranTranslatorApp:
     def download_quran_data(self):
         def download():
             try:
+                self.set_status("Downloading complete Quran (114 surahs)...")
                 self.log_message("Downloading Quran data...")
-                success = False
-                if config.use_foundation_api() and self.content_api:
-                    success = self.content_api.download_complete_quran()
-                if not success and config.use_offline_fallback():
-                    from unified_quran_api import UnifiedQuranAPI
-                    success = UnifiedQuranAPI().download_from_fallback_api()
+
+                from unified_quran_api import UnifiedQuranAPI
+                api = UnifiedQuranAPI()
+                self.set_status("Fetching from Al-Quran Cloud API (with translations)...")
+                success = api.download_from_fallback_api(force_refresh=True)
+
                 if success:
+                    self.set_status("Building verse index...")
                     self.initialize_quran_data()
+                    self.set_status("Download complete - 114 surahs loaded")
                     self.log_message("Download complete!")
-                    self.root.after(0, lambda: messagebox.showinfo("Done", "Quran data downloaded!"))
+                    self.root.after(0, lambda: messagebox.showinfo("Done", "Complete Quran downloaded (114 surahs with translations)!"))
                 else:
+                    self.set_status("Download failed")
                     self.log_message("Download failed")
             except Exception as e:
+                self.set_status(f"Error: {e}")
                 self.log_message(f"Download error: {e}")
         threading.Thread(target=download, daemon=True).start()
 
@@ -405,13 +426,16 @@ class QuranTranslatorApp:
 
     def toggle_listening(self):
         if not self.speech_recognizer:
+            self.set_status("Initializing microphone...")
             if not self.setup_speech_recognition():
                 messagebox.showerror("Error", "Speech recognition not available.\nInstall: pip install pyaudio")
+                self.set_status("Speech recognition unavailable")
                 return
         if not self.is_listening:
             self.is_listening = True
             self.listen_btn.config(text="Stop Listening", bg=self.RED)
             self._set_status("Listening...", self.RED)
+            self.set_status("Listening for Arabic recitation...")
             self.speech_recognizer.start_listening()
             self.log_message("Listening...")
         else:
@@ -422,13 +446,20 @@ class QuranTranslatorApp:
             self.log_message("Stopped")
 
     def test_recognition(self):
-        for text in ["بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
-                     "الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ",
-                     "الرَّحْمَٰنِ الرَّحِيمِ"]:
-            self.on_speech_recognized(text)
-            time.sleep(0.3)
+        samples = ["بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+                   "الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ",
+                   "الرَّحْمَٰنِ الرَّحِيمِ"]
+        self._run_test_sequence(samples, 0)
+
+    def _run_test_sequence(self, samples, index):
+        """Run test samples one at a time without blocking the UI."""
+        if index >= len(samples):
+            return
+        self.on_speech_recognized(samples[index])
+        self.root.after(800, self._run_test_sequence, samples, index + 1)
 
     def on_speech_recognized(self, arabic_text: str):
+        self.set_status("Matching verse...")
         self.log_message(f"Heard: {arabic_text[:40]}")
         if not self.quran_matcher:
             return
@@ -437,10 +468,11 @@ class QuranTranslatorApp:
             self.current_verse = verse_info
             self.display_verse(verse_info)
             self._track_reading(verse_info)
+            self.set_status(f"Matched: {verse_info.get('surah_name', '')} v{verse_info.get('verse', '')}")
         else:
             self.log_message("No match found")
-            self._set_text(self.arabic_text, arabic_text)
-            self._set_text(self.english_text, "(no match)")
+            self.set_status("No verse match found")
+            self._display_verse_text(arabic_text, "(no match)")
 
     # --- Display ---
 
@@ -454,8 +486,8 @@ class QuranTranslatorApp:
             status += f"  ({confidence:.0%} match)"
         self._set_status(status, self.ACCENT)
 
-        self._set_text(self.arabic_text, verse_info.get('arabic', ''))
-        self._set_text(self.english_text, verse_info.get('translation', ''))
+        self._display_verse_text(verse_info.get('arabic', ''),
+                                verse_info.get('translation', ''))
 
     def _set_status(self, text, color=None):
         self.status_text.configure(state=tk.NORMAL)
@@ -465,11 +497,18 @@ class QuranTranslatorApp:
             self.status_text.configure(fg=color)
         self.status_text.configure(state=tk.DISABLED)
 
-    def _set_text(self, widget, text):
-        widget.configure(state=tk.NORMAL)
-        widget.delete("1.0", tk.END)
-        widget.insert("1.0", text)
-        widget.configure(state=tk.DISABLED)
+    def _display_verse_text(self, arabic: str, english: str):
+        """Update the combined verse display with arabic and english."""
+        w = self.verse_display
+        w.configure(state=tk.NORMAL)
+        w.delete("1.0", tk.END)
+        w.insert(tk.END, arabic, "arabic")
+        w.insert(tk.END, "\n\n")
+        w.insert(tk.END, english)
+        w.see("1.0")
+        w.configure(state=tk.DISABLED)
+        # Also show translation in status bar
+        self.set_status(f"Translation: {english}")
 
     # --- Bookmarks ---
 
@@ -535,10 +574,12 @@ class QuranTranslatorApp:
             return
 
         def do_sync():
+            self.set_status("Syncing bookmarks to Quran.Foundation...")
             result = self.user_api.sync_local_data()
             count = result.get("bookmarks", 0) + result.get("sessions", 0)
             if count > 0:
                 self.log_message(f"Synced {count} items")
+            self.set_status(f"Sync complete ({count} items)")
             self.root.after(0, self.refresh_bookmarks)
 
         threading.Thread(target=do_sync, daemon=True).start()
@@ -640,10 +681,22 @@ class QuranTranslatorApp:
 
     # --- Logging ---
 
+    def set_status(self, text: str):
+        """Update the bottom status bar."""
+        try:
+            self.statusbar.configure(state=tk.NORMAL)
+            self.statusbar.delete("1.0", tk.END)
+            self.statusbar.insert("1.0", text)
+            self.statusbar.configure(state=tk.DISABLED)
+            self.root.update_idletasks()
+        except (tk.TclError, AttributeError):
+            pass
+
     def log_message(self, message: str):
         ts = time.strftime("%H:%M:%S")
         entry = f"[{ts}] {message}\n"
         print(entry.strip())
+        self.set_status(message)
         if hasattr(self, 'log_text') and self.log_text:
             try:
                 self.log_text.configure(state=tk.NORMAL)
