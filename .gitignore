@@ -42,6 +42,11 @@ Thumbs.db
 # Logs
 *.log
 
+# User tokens and local user data (sensitive)
+data/.user_token.json
+data/.user_data.json
+
 # Data files (optional - uncomment if you don't want to commit downloaded data)
 # data/quran_complete.json
+# data/quran_official.json
 # data/translations.json

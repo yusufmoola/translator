@@ -83,40 +83,38 @@ class QuranMatcher:
     def build_search_index(self):
         """Build search index for faster verse lookup"""
         self.verse_index = {}
-        
+        # Store verse info once, reference by key to save memory
+        self._verse_store = {}
+
         for surah in self.quran_data.get('surahs', []):
             surah_num = surah['number']
             for verse in surah.get('verses', []):
                 verse_num = verse['number']
                 arabic_text = verse['arabic']
-                
-                # Normalize Arabic text for better matching
-                normalized_text = self.normalize_arabic_text(arabic_text)
-                
-                # Create multiple index entries for different text segments
-                words = normalized_text.split()
-                
-                # Index by full text
-                self.verse_index[normalized_text] = {
+
+                # Store verse info once
+                store_key = (surah_num, verse_num)
+                self._verse_store[store_key] = {
                     'surah': surah_num,
                     'verse': verse_num,
                     'arabic': arabic_text,
                     'translation': verse['translation'],
                     'surah_name': surah['name']
                 }
-                
-                # Index by word combinations (for partial matching)
-                for i in range(len(words)):
-                    for j in range(i + 3, min(len(words) + 1, i + 8)):  # 3-7 word phrases
+
+                normalized_text = self.normalize_arabic_text(arabic_text)
+                words = normalized_text.split()
+
+                # Index by full text
+                self.verse_index[normalized_text] = store_key
+
+                # Index by word combinations (3-5 words only, cap at 15 words in)
+                max_start = min(len(words), 15)
+                for i in range(max_start):
+                    for j in range(i + 3, min(len(words) + 1, i + 6)):
                         phrase = ' '.join(words[i:j])
                         if phrase not in self.verse_index:
-                            self.verse_index[phrase] = {
-                                'surah': surah_num,
-                                'verse': verse_num,
-                                'arabic': arabic_text,
-                                'translation': verse['translation'],
-                                'surah_name': surah['name']
-                            }
+                            self.verse_index[phrase] = store_key
     
     def normalize_arabic_text(self, text: str) -> str:
         """Normalize Arabic text for better matching"""
@@ -166,77 +164,77 @@ class QuranMatcher:
         
         return text
     
+    def _resolve(self, key) -> Dict:
+        """Resolve a store key to verse info dict"""
+        if isinstance(key, tuple):
+            return self._verse_store[key]
+        return key
+
     def find_matching_verse(self, recognized_text: str, threshold: float = 0.3) -> Optional[Dict]:
         """Find the best matching verse for recognized text"""
         if not recognized_text:
             return None
-        
+
         normalized_input = self.normalize_arabic_text(recognized_text)
         best_match = None
         best_score = 0
-        
+
         # Try exact match first
         if normalized_input in self.verse_index:
-            result = self.verse_index[normalized_input].copy()
+            result = self._resolve(self.verse_index[normalized_input]).copy()
             result['confidence'] = 1.0
             return result
-        
+
         # Try fuzzy matching with all indexed text
-        for indexed_text, verse_info in self.verse_index.items():
+        for indexed_text, store_key in self.verse_index.items():
             score = self.calculate_similarity(normalized_input, indexed_text)
-            
+
             if score > best_score and score >= threshold:
                 best_score = score
-                best_match = verse_info.copy()
-        
+                best_match = store_key
+
         # Also try substring matching for partial recognition
         if not best_match or best_score < 0.7:
-            for indexed_text, verse_info in self.verse_index.items():
-                # Check if recognized text is contained in verse or vice versa
+            for indexed_text, store_key in self.verse_index.items():
                 if (normalized_input in indexed_text or indexed_text in normalized_input) and len(normalized_input) > 2:
                     containment_score = min(len(normalized_input), len(indexed_text)) / max(len(normalized_input), len(indexed_text))
                     if containment_score > best_score and containment_score >= threshold:
                         best_score = containment_score
-                        best_match = verse_info.copy()
-        
-        # Try word-level matching for inputs (including single words)
+                        best_match = store_key
+
+        # Try word-level matching
         if not best_match:
             input_words = set(normalized_input.split())
-            for indexed_text, verse_info in self.verse_index.items():
+            for indexed_text, store_key in self.verse_index.items():
                 indexed_words = set(indexed_text.split())
-                
-                # Check if most input words are found in the verse
                 common_words = input_words.intersection(indexed_words)
                 if common_words:
                     word_score = len(common_words) / len(input_words) if input_words else 0
-                    # Bonus for longer matches
                     if len(common_words) >= 2:
                         word_score *= 1.2
-                    
-                    if word_score > best_score and word_score >= 0.2:  # Lower threshold for word matching
+                    if word_score > best_score and word_score >= 0.2:
                         best_score = word_score
-                        best_match = verse_info.copy()
-        
-        # Try partial phrase matching (remove common prefixes like Bismillah)
+                        best_match = store_key
+
+        # Try partial phrase matching (remove Bismillah prefix)
         if not best_match:
-            # Remove Bismillah from both input and indexed text for comparison
             bismillah_pattern = r'بسم\s+الله\s+الرحمن\s+الرحيم\s*'
             clean_input = re.sub(bismillah_pattern, '', normalized_input).strip()
-            
-            if clean_input and len(clean_input) > 5:  # Only if there's substantial content left
-                for indexed_text, verse_info in self.verse_index.items():
+
+            if clean_input and len(clean_input) > 5:
+                for indexed_text, store_key in self.verse_index.items():
                     clean_indexed = re.sub(bismillah_pattern, '', indexed_text).strip()
-                    
                     if clean_indexed:
                         phrase_score = self.calculate_similarity(clean_input, clean_indexed)
                         if phrase_score > best_score and phrase_score >= 0.3:
                             best_score = phrase_score
-                            best_match = verse_info.copy()
-        
+                            best_match = store_key
+
         if best_match:
-            best_match['confidence'] = best_score
-            return best_match
-        
+            result = self._resolve(best_match).copy()
+            result['confidence'] = best_score
+            return result
+
         return None
     
     def calculate_similarity(self, text1: str, text2: str) -> float:
@@ -260,15 +258,18 @@ class QuranMatcher:
         """Search for verses containing the query"""
         normalized_query = self.normalize_arabic_text(query)
         results = []
-        
-        for indexed_text, verse_info in self.verse_index.items():
+        seen = set()
+
+        for indexed_text, store_key in self.verse_index.items():
             if normalized_query in indexed_text:
+                if store_key in seen:
+                    continue
+                seen.add(store_key)
                 score = self.calculate_similarity(normalized_query, indexed_text)
-                verse_info_copy = verse_info.copy()
+                verse_info_copy = self._resolve(store_key).copy()
                 verse_info_copy['confidence'] = score
                 results.append(verse_info_copy)
-        
-        # Sort by confidence and return top results
+
         results.sort(key=lambda x: x['confidence'], reverse=True)
         return results[:limit]
     

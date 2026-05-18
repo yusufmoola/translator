@@ -17,13 +17,13 @@ class ArabicSpeechRecognizer:
         self.recognizer = sr.Recognizer()
         self.microphone = sr.Microphone()
         self.is_listening = False
-        self.audio_queue = queue.Queue()
-        
+        self.audio_queue = queue.Queue(maxsize=5)
+
         # Configure recognizer for Arabic
         self.recognizer.energy_threshold = 300
         self.recognizer.dynamic_energy_threshold = True
         self.recognizer.pause_threshold = 0.8
-        
+
         # Calibrate microphone
         self.calibrate_microphone()
     
