@@ -50,7 +50,7 @@ class QuranTranslatorApp:
     BTN_BG = "#4caf50"
     BTN_FG = "#000000"
     NAV_BG = "#2a2a2a"
-    NAV_FG = "#cccccc"
+    NAV_FG = "#666666"
     NAV_BORDER = "#4caf50"
     PANEL_BG = "#000000"
     ORANGE = "#e8a838"
@@ -324,12 +324,22 @@ class QuranTranslatorApp:
     # --- Auth ---
 
     def _update_login_button(self):
+        # Destroy and recreate to ensure Tk 9.0 picks up new colors
+        parent = self.login_btn.master
+        self.login_btn.destroy()
         if self.oauth_client and self.oauth_client.is_user_authenticated():
-            self.login_btn.configure(text="Logout", command=self.logout,
-                                     bg="#666666", fg="#ffffff")
+            self.login_btn = tk.Button(parent, text="Logout", command=self.logout,
+                                       bg="#cc4444", fg="#ffffff", relief=tk.FLAT,
+                                       font=("Arial", 10, "bold"), padx=12, pady=4,
+                                       activebackground="#cc4444", activeforeground="#ffffff",
+                                       highlightthickness=0, borderwidth=0)
         else:
-            self.login_btn.configure(text="Login", command=self.login,
-                                     bg=self.ACCENT, fg="#000000")
+            self.login_btn = tk.Button(parent, text="Login", command=self.login,
+                                       bg=self.ACCENT, fg="#000000", relief=tk.FLAT,
+                                       font=("Arial", 10, "bold"), padx=12, pady=4,
+                                       activebackground=self.ACCENT, activeforeground="#000000",
+                                       highlightthickness=0, borderwidth=0)
+        self.login_btn.pack(side=tk.RIGHT)
 
     def login(self):
         if not self.oauth_client:
