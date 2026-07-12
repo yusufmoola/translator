@@ -95,6 +95,16 @@ Register `http://localhost:8765/callback` as your redirect URI.
 
 Set `USE_FOUNDATION_CONTENT_API=false` in `.env` to use the offline Al-Quran Cloud data instead of the Foundation API. The old code path is preserved and toggleable.
 
+## Roadmap: Multi-Platform
+
+The app is being refactored into a shared core library with thin platform-specific UI layers. See [ARCHITECTURE_PLAN.md](ARCHITECTURE_PLAN.md) for full details.
+
+- **Phase 1** — Extract core library (matcher, normalizer, APIs, config), verify Mac app still works
+- **Phase 2** — Web backend (FastAPI with REST + WebSocket endpoints, OAuth proxy)
+- **Phase 3** — Web frontend (Web Speech API for in-browser Arabic recognition, static JS app)
+- **Phase 4** — AWS deployment (S3 + CloudFront for static assets, API Gateway + Lambda for backend)
+- **Phase 5** — Mobile apps (React Native or Flutter, calling the same backend)
+
 ## License
 
 For educational and religious purposes. Quran text sourced from Quran.Foundation under their developer terms.
